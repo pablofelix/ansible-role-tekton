@@ -1,0 +1,10 @@
+---
+# defaults file for tekton
+tekton_version: "latest"
+tekton_project: "tekton-pipelines"
+tekton_dashboard_namespace: "tekton-pipelines"
+tekton_triggers_version: "latest"
+tekton_dashboard_version: "latest"
+tekton_dashboard_ingress: false
+tekton_dashboard_ingress_host: "tekton-dashboard.{{ ingress_domain }}"
+tekton_dashboard_ingress_tls: false

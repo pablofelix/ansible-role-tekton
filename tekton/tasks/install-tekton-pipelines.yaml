@@ -1,0 +1,95 @@
+---
+- name: Get User Permissions
+  shell: oc get clusterrolebindings | grep cluster-admin | awk '{print $1}'
+  register: user_info
+  changed_when: false
+  failed_when: user_info.rc != 0
+  tags:
+    - user_info
+
+- name: "{{ debug_prefix }} Show user permissions"
+  debug:
+    msg: "{{ user_info.stdout.split('\n')[0] }}"
+  tags:
+    - user_info
+  
+- name: "{{ verify_prefix }} Assert that user is cluster-admin"
+  assert:
+    that:
+      - user_info.stdout.split('\n')[0] == "cluster-admin"
+    msg: "User is not cluster-admin. Please login as cluster-admin and try again."
+
+- name: Create Tekton Project
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ tekton_project }}"
+  tags:
+    - tekton_project
+  
+- name: Create Service Account and add the anyuid security context constraint for the service account in two projects
+  loop:
+    - tekton-pipelines-controller
+    - tekton-pipelines-webhook
+  loop_control:
+    loop_var: service_account
+  shell: oc adm policy add-scc-to-user anyuid -z {{ service_account }} -n {{ tekton_project }}
+  register: add_scc_to_user
+  changed_when: false
+  failed_when: add_scc_to_user.rc != 0
+  tags:
+    - scc
+
+- name: Get pods containing label app.kubernetes.io/part-of=tekton-pipelines in tekton-pipelines namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ tekton_project }}"
+    label_selectors:
+      - "app.kubernetes.io/part-of=tekton-pipelines"
+  register: tekton_pipelines_pods
+  tags:
+    - tekton_pipelines_pods
+
+- name: Check if tekton-pipelines-resolves namespace exists
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: tekton-pipelines-resolves
+  register: tekton_pipelines_resolves_namespace
+  tags:
+    - tekton_pipelines_resolves_namespace
+
+- name: Get UID range for tekton-pipelines namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ tekton_project }}"
+  register: tekton_pipelines_namespace
+  tags:
+    - tekton_pipelines_namespace
+
+- name: "{{ debug_prefix }} Show tekton_pipelines_namespace"
+  debug:
+    msg: "{{ tekton_pipelines_namespace.resources[0].metadata.annotations['openshift.io/sa.scc.uid-range'] }}"
+  tags:
+    - tekton_pipelines_namespace
+
+- name: Modify namespace UID range to allow 60000-70000 UID range
+  shell: oc patch namespace {{ tekton_project }} -p '{"metadata":{"annotations":{"openshift.io/sa.scc.uid-range":"60000/10000"}}}'
+  register: patch_namespace
+  when: tekton_pipelines_namespace.resources[0].metadata.annotations['openshift.io/sa.scc.uid-range']  != '60000/10000'
+  failed_when: patch_namespace.rc != 0
+  tags:
+    - tekton_pipelines
+
+- name: Install tekton pipelines files
+  shell: oc apply -f https://storage.googleapis.com/tekton-releases/pipeline/{{ tekton_version }}/release.notags.yaml
+  register: install_tekton_pipelines
+  when: tekton_pipelines_pods.resources | length == 0
+  failed_when: install_tekton_pipelines.rc != 0
+  tags:
+    - tekton_pipelines

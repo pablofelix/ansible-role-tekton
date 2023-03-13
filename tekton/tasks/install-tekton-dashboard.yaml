@@ -1,0 +1,43 @@
+---
+- name: Get pods containing label tekton-dashboard in tekton-pipelines namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: tekton-pipelines
+    label_selectors:
+      - "app.kubernetes.io/part-of=tekton-dashboard"
+  register: tekton_dashboard_pods
+  tags:
+    - tekton_dashboard_pods
+
+- name: Install tekton dashboard files
+  shell: oc apply -f https://storage.googleapis.com/tekton-releases/dashboard/{{ tekton_dashboard_version }}/release-full.yaml
+  register: install_tekton_dashboard
+  when: tekton_dashboard_pods.resources | length == 0
+  failed_when: install_tekton_dashboard.rc != 0
+  tags:
+    - tekton_dashboard
+
+- name: Expose tekton dashboard route
+  shell: oc expose svc/tekton-dashboard -n tekton-pipelines
+  register: expose_tekton_dashboard
+  when: tekton_dashboard_pods.resources | length == 0
+  failed_when: expose_tekton_dashboard.rc != 0
+  tags:
+    - tekton_dashboard
+
+- name: Get tekton dashboard route
+  shell: oc get route tekton-dashboard -n tekton-pipelines -o=custom-columns=HOST:.spec.host --no-headers=true
+  register: tekton_dashboard_route
+  when: tekton_dashboard_pods.resources | length == 0
+  failed_when: tekton_dashboard_route.rc != 0
+  tags:
+    - tekton_dashboard
+
+- name: Apply jinja2 ingress using the variable tekton_dashboard_route in k8s module
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'tekton-dashboard-ingress.j2') }}"
+  when: tekton_dashboard_pods.resources | length == 0
+  tags:
+    - tekton_dashboard

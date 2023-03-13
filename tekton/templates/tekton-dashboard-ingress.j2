@@ -1,0 +1,17 @@
+kind: Ingress
+apiVersion: config.openshift.io/v1
+metadata:
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+spec:
+  rules:
+  - host: {{ tekton_dashboard_route }}
+    http:
+      paths:
+      - pathType: ImplementationSpecific
+        backend:
+          service:
+            name: tekton-dashboard
+            port:
+              number: 9097
+

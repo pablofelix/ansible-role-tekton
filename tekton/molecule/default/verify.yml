@@ -1,0 +1,62 @@
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Update get pods containing label app.kubernetes.io/part-of=tekton-pipelines in tekton-pipelines namespace
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Pod
+      namespace: tekton-pipelines
+      label_selectors:
+        - "app.kubernetes.io/part-of=tekton-pipelines"
+    register: tekton_pipelines_pods
+    tags:
+      - tekton_pipelines_pods
+
+  - name: Assert there is 2 tekton-pipelines pod
+    assert:
+      that:
+        - tekton_pipelines_pods.resources | length == 2
+      msg: "There is not 1 pod containing the string tekton-pipelines in tekton-pipelines namespace"
+    tags:
+      - tekton_pipelines_pods
+
+  - name: Get pods containing tekton-triggers in tekton-pipelines namespace
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Pod
+      namespace: tekton-pipelines
+      label_selectors:
+        - "app.kubernetes.io/part-of=tekton-triggers"
+    register: tekton_triggers_pods
+    tags:
+      - tekton_triggers_pods
+
+  - name: Assert there are 3 trigger pods
+    assert:
+      that:
+        - tekton_triggers_pods.resources | length == 3
+      msg: "There are not 3 pods containing the string trigger in tekton-pipelines namespace"
+    tags:
+      - tekton_triggers_pods
+  - name: Get pods containing label tekton-dashboard in tekton-pipelines namespace
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Pod
+      namespace: tekton-pipelines
+      label_selectors:
+        - "app.kubernetes.io/part-of=tekton-dashboard"
+    register: tekton_dashboard_pods
+    tags:
+      - tekton_dashboard_pods
+
+  - name: Assert there is 1 dashboard pod
+    assert:
+      that:
+        - tekton_dashboard_pods.resources | length == 1
+      msg: "There is not 1 pod containing the string dashboard in tekton-pipelines namespace"
+    tags:
+      - tekton_dashboard_pods

@@ -1,0 +1,27 @@
+---
+- name: Get pods containing tekton-triggers in tekton-pipelines namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: tekton-pipelines
+    label_selectors:
+      - "app.kubernetes.io/part-of=tekton-triggers"
+  register: tekton_triggers_pods
+  tags:
+    - tekton_triggers_pods
+
+- name: Install tekton triggers files
+  shell: oc apply -f https://storage.googleapis.com/tekton-releases/triggers/{{ tekton_triggers_version }}/release.notags.yaml
+  register: install_tekton_triggers
+  when: tekton_triggers_pods.resources | length == 0
+  failed_when: install_tekton_triggers.rc != 0
+  tags:
+    - tekton_triggers
+  
+- name: Install tekton triggers interceptors files
+  shell: oc apply -f https://storage.googleapis.com/tekton-releases/triggers/{{ tekton_triggers_version }}/interceptors.notags.yaml
+  register: install_tekton_triggers_interceptors
+  when: tekton_triggers_pods.resources | length == 0
+  failed_when: install_tekton_triggers_interceptors.rc != 0
+  tags:
+    - tekton_triggers_interceptors

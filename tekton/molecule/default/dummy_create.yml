@@ -1,0 +1,10 @@
+---
+- name: Create
+  hosts: localhost
+  gather_facts: false
+  become: false
+  connection: local
+  tasks:
+    - name: Create instance
+      debug:
+        msg: "Creating instance on localhost"

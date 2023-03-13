@@ -1,0 +1,39 @@
+---
+- name: Get Cluster information from the cluster
+  shell: oc whoami --show-server
+  register: cluster_info
+  changed_when: false
+  failed_when: cluster_info.rc != 0
+  tags:
+    - cluster_info
+
+- name: Show cluster information and verify the url
+  debug:
+    msg: "{{ cluster_info.stdout }}"
+  tags:
+    - cluster_info
+
+- name: Set Verify Prefix
+  set_fact:
+    verify_prefix: "*** Verify ***"
+
+- name: Set Debug Prefix
+  set_fact:
+    debug_prefix: "*** Debug ***"
+
+- name: include tasks
+  include_tasks: "{{ install_tekton }}"
+  loop:
+    - install-tekton-pipelines.yaml
+    - install-tekton-triggers.yaml 
+    - install-tekton-dashboard.yaml
+  loop_control:
+    loop_var: install_tekton
+    
+  tags:
+    - tekton
+
+
+  
+
+  
