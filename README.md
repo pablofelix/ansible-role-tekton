@@ -16,7 +16,6 @@ pip install -r requirements.txt
 ```
 3- Install ansible galaxy dependencies
 
-```
 ansible-galaxy install dependencies
 ```
  ansible-galaxy collection install community.kubernetes
